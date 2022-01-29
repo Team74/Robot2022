@@ -33,7 +33,7 @@ public class Robot extends TimedRobot {
 
   NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
 
-  SwerveModule swervePod = new SwerveModule(18, 19, 0, 280.8);
+  SwerveModule swervePod = new SwerveModule(8, 7, 0, 280.8);
 
   double driveControllerLeftX;
   double driveControllerLeftY;
@@ -139,7 +139,9 @@ public class Robot extends TimedRobot {
 
     } else {
 
-      desiredSwerveAngle = 0.0;
+      if(swervePod.getSwerveAngle() >= 270.0 || swervePod.getSwerveAngle() <= 90.0) desiredSwerveAngle = 0.0; // pavlo's code
+      else desiredSwerveAngle = 180.0;
+      //desiredSwerveAngle = 0.0;
 
     }
 
