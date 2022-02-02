@@ -33,7 +33,18 @@ public class Robot extends TimedRobot {
 
   NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
 
-  SwerveModule swervePod = new SwerveModule(8, 7, 0, 280.8);
+  SwerveModule swerveModules[] = new SwerveModule[]{     //Drive Motor, Rotation Motor, Rotation Encoder, Rotation Offset
+    //new SwerveModule(5,14,0,165.76),           //Front Left
+    //new SwerveModule(12,15,1,175.15),           //Front Right
+    //new SwerveModule(11,3,2,-1.58),           //Back Left
+    //new SwerveModule(8, 7, 0, 280.8)            //Back Right
+  };
+
+
+  SwerveModule swervePod = new SwerveModule(8, 7, 0, 280.8);           //Back Right
+
+
+  SwerveDrive drive = new SwerveDrive(swerveModules, gyro);
 
   double driveControllerLeftX;
   double driveControllerLeftY;
@@ -113,7 +124,7 @@ public class Robot extends TimedRobot {
     driveControllerLeftX = driverController.getLeftX();
     driveControllerLeftY = -driverController.getLeftY();
 
- 
+    
     if(driveControllerLeftY>0.1){
 
       desiredSwerveAngle = Math.atan(driveControllerLeftX / driveControllerLeftY);
@@ -145,14 +156,16 @@ public class Robot extends TimedRobot {
 
     }
 
-    swervePod.goToAngle(desiredSwerveAngle);
+
+    //swervePod.setDriveMotor(-Math.sqrt(driveControllerLeftX*driveControllerLeftX + driveControllerLeftY*driveControllerLeftY));
+    swervePod.GoToAngle(desiredSwerveAngle);
 
     SmartDashboard.putNumber("Drive Left X", driveControllerLeftX);
     SmartDashboard.putNumber("Drive Left Y", driveControllerLeftY);
 
     SmartDashboard.putNumber("Desired Swerve Angle", desiredSwerveAngle);
-    SmartDashboard.putNumber("Swerve Angle", swervePod.getSwerveAngle());
 
+    SmartDashboard.putNumber("Robot Angle", drive.getGyroAngle());
   }
 
   /** This function is called once when the robot is disabled. */

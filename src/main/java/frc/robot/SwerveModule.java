@@ -29,7 +29,7 @@ public class SwerveModule{
 
         angleAdjuster = new PIDController(1.0,0.0,0.00);
 
-        angleAdjuster.enableContinuousInput(0,360);
+        angleAdjuster.enableContinuousInput(-180,180);
         angleAdjuster.setTolerance(10,20);
         angleAdjuster.reset();
 
@@ -54,10 +54,12 @@ public class SwerveModule{
             Angle = Angle + 360;
         }
 
+        Angle = Angle-180;
+
         return Angle;
     }
 
-    public void goToAngle(double desiredAngle){
+    public void GoToAngle(double desiredAngle){
 
         double rotationMotorSpeed; 
         
