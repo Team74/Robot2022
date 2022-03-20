@@ -27,10 +27,10 @@ public class SwerveDrive {
         swerveModules = module; 
 
         driveKinematics = new SwerveDriveKinematics(
-            new Translation2d(0.235, 0.38),     //Front Left
-            new Translation2d(0.235, -0.38),    //Front Right
-            new Translation2d(-0.235, 0.38),    //Back Left
-            new Translation2d(-0.235, -0.38)    //Back Right
+            new Translation2d(0.38, 0.235),     //Front Left
+            new Translation2d(0.38, -0.235),    //Front Right 
+            new Translation2d(-0.38, 0.235),    //Back Left 
+            new Translation2d(-0.38, -0.235)    //Back Right
         ); 
 
         this.gyro = gyro;
@@ -48,14 +48,16 @@ public class SwerveDrive {
             gyroAngle = gyroAngle+360;
         }
 
-        return gyroAngle;
 
+        SmartDashboard.putNumber("Robot Angle", gyroAngle);
+
+        return gyroAngle;
     }
 
 
-    public void moveRobot(double xVelocity, double yVelocity, double rotationSpeed){
+    public void moveRobotAbsolute(double xVelocity, double yVelocity, double rotationSpeed){
 
-        robotSpeed = ChassisSpeeds.fromFieldRelativeSpeeds(xVelocity, yVelocity, rotationSpeed, Rotation2d.fromDegrees(getGyroAngle()));
+        robotSpeed = ChassisSpeeds.fromFieldRelativeSpeeds(yVelocity, -xVelocity, -rotationSpeed, Rotation2d.fromDegrees(-getGyroAngle()));
 
         moduleStates = driveKinematics.toSwerveModuleStates(robotSpeed);
 
@@ -64,6 +66,37 @@ public class SwerveDrive {
             swerveModules[index].setDriveMotor(newModuleState.speedMetersPerSecond);
             swerveModules[index].GoToAngle(newModuleState.angle.getDegrees());
         }
+    }
+
+    public void moveRobotRelative(double xVelocity, double yVelocity, double rotationSpeed){
+
+        robotSpeed = new ChassisSpeeds(yVelocity, -xVelocity, -rotationSpeed);
+
+        moduleStates = driveKinematics.toSwerveModuleStates(robotSpeed);
+
+        for(int index = 0; index<4; index++){
+            SwerveModuleState newModuleState = SwerveModuleState.optimize(moduleStates[index], new Rotation2d(swerveModules[index].getSwerveAngle()*Math.PI/180));
+            swerveModules[index].setDriveMotor(newModuleState.speedMetersPerSecond);
+            swerveModules[index].GoToAngle(newModuleState.angle.getDegrees());
+        }
+
+    }
+
+    public void stopSwerveDrive(){
+        ChassisSpeeds robotSpeed = new ChassisSpeeds(
+            0.0,
+            0.0,
+            0.0
+        );
+
+        moduleStates = driveKinematics.toSwerveModuleStates(robotSpeed);
+
+        for(int index = 0; index<4; index++){
+            SwerveModuleState newModuleState = SwerveModuleState.optimize(moduleStates[index], new Rotation2d(swerveModules[index].getSwerveAngle()*Math.PI/180));
+            swerveModules[index].setDriveMotor(newModuleState.speedMetersPerSecond);
+            swerveModules[index].GoToAngle(newModuleState.angle.getDegrees());
+        }
+        
     }
 
 }

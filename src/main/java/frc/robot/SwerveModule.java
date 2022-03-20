@@ -27,7 +27,7 @@ public class SwerveModule{
         rotationMotor = new CANSparkMax(rotationMotorPort, MotorType.kBrushless);
         swerveEncoder = new DutyCycleEncoder(rotationEncoderPort);
 
-        angleAdjuster = new PIDController(1.0,0.0,0.00);
+        angleAdjuster = new PIDController(1.0,0.0,0.05);
 
         angleAdjuster.enableContinuousInput(-180,180);
         angleAdjuster.setTolerance(10,20);
@@ -43,17 +43,12 @@ public class SwerveModule{
 
         Angle = swerveEncoder.get();
 
-        Angle = Angle - (int)Angle;
-        Angle = Angle + 1;
-        Angle = Angle - (int)Angle;
         Angle = Angle*360;
-
         Angle = Angle - offsetAngle;
 
-        if(Angle < 0){
-            Angle = Angle + 360;
-        }
-
+        Angle = Angle%360;
+        Angle = Angle+360;
+        Angle = Angle%360;
         Angle = Angle-180;
 
         return Angle;
@@ -70,7 +65,7 @@ public class SwerveModule{
 
         if(angleAdjuster.atSetpoint()){
             rotationMotor.set(0);
-            System.out.println("atSetPoint error");
+            //System.out.println("atSetPoint error");
         } else{
             rotationMotor.set(rotationMotorSpeed);
         }
