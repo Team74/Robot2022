@@ -4,6 +4,8 @@
 
 package frc.robot;
 
+import java.util.Set;
+
 import com.kauailabs.navx.frc.AHRS;
 import com.revrobotics.ColorSensorV3;
 
@@ -14,6 +16,7 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.NetworkTableType;
 import edu.wpi.first.wpilibj.I2C;
 import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -37,6 +40,8 @@ public class Robot extends TimedRobot {
 
   private static final String kBlue = "Blue";
   private static final String kRed = "Red";
+
+  protected int curPipeline;
 
 
   private String m_autoSelected;
@@ -213,16 +218,16 @@ public class Robot extends TimedRobot {
     flywheelOn = false;
     flywheelSpeed = 0.0;
     currentSpeed = 0.5;
-    NetworkTableEntry pipeline = table.getEntry("getpipe");
 
-    pipeline.forceSetString("Blue_Ball_2022");
+    //NetworkTableEntry getpipe = table.getEntry("getpipe");
+    //getpipe.forceSetString("Blue_Ball_2022");
 
-    SmartDashboard.putNumber("Pre Pipeline", pipeline.getDouble(0.5));
+    //SmartDashboard.putNumber("Pre Pipeline", (double)getpipe.getNumber(-1));
+    SmartDashboard.putNumber("set_pipeline", 0);
 
     NetworkTableEntry pipeline = table.getEntry("pipeline");
-    boolean rv = pipeline.setNumber(1.0);
+    boolean rv = pipeline.setNumber(3);
     System.out.println(rv);
-
   }
 
   /** This function is called periodically during operator control. */
@@ -233,21 +238,27 @@ public class Robot extends TimedRobot {
     NetworkTableEntry ty = table.getEntry("ty");
     NetworkTableEntry ta = table.getEntry("ta");
 
-    
-
-
-    
-
-    NetworkTableEntry ledMode = table.getEntry("ledMode");
-    ledMode.setNumber(0);      // 1 = force off,   0 = follow pipeline
+    //NetworkTableEntry ledMode = table.getEntry("ledMode");
+    //ledMode.setNumber(0);      // 1 = force off,   0 = follow pipeline
 
     //read values periodically
     double x = tx.getDouble(0.0);
     double y = ty.getDouble(0.0);
     double area = ta.getDouble(0.0);
 
-    //SmartDashboard.putNumber("Pipeline", pipeline.getDouble(0.5));
-    SmartDashboard.putNumber("Pipeline", table.getEntry("getpipe").getDouble(0.5));
+    int setPipeline = (int)SmartDashboard.getNumber("set_pipeline", -1);
+    if (setPipeline != curPipeline) {
+      curPipeline = setPipeline;
+      SmartDashboard.putNumber("Expected Pipeline", curPipeline);
+      System.out.println("Set pipeline to " + curPipeline);
+      NetworkTableEntry pipeline = table.getEntry("pipeline");
+      boolean rv = pipeline.setNumber(setPipeline);
+      System.out.println(rv);
+    }
+
+    SmartDashboard.putString("zPipeline", table.getEntry("getpipe").getString("-"));
+    SmartDashboard.putNumber("yPipeline", table.getEntry("getpipe").getDouble(-1));
+    SmartDashboard.putNumber("pipe_last_change", table.getEntry("getpipe").getLastChange());
 
     driveControllerLeftX = driverController.getLeftX();
     driveControllerLeftY = -driverController.getLeftY();
