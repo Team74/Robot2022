@@ -20,6 +20,7 @@ public class SwerveDrive {
     SwerveDriveKinematics driveKinematics;
     ChassisSpeeds robotSpeed;
     AHRS gyro;
+    boolean moduleStateInitialized = false;
 
     SwerveModuleState[] moduleStates;
 
@@ -56,14 +57,18 @@ public class SwerveDrive {
 
 
     public void moveRobotAbsolute(double xVelocity, double yVelocity, double rotationSpeed){
+        boolean freezeWheelPosition = (xVelocity == 0 && yVelocity == 0 && rotationSpeed == 0);
 
         robotSpeed = ChassisSpeeds.fromFieldRelativeSpeeds(yVelocity, -xVelocity, -rotationSpeed, Rotation2d.fromDegrees(-getGyroAngle()));
 
-        moduleStates = driveKinematics.toSwerveModuleStates(robotSpeed);
+        if (!freezeWheelPosition || !moduleStateInitialized) {
+            moduleStates = driveKinematics.toSwerveModuleStates(robotSpeed);
+            moduleStateInitialized = true;
+        }
 
         for(int index = 0; index<4; index++){
             SwerveModuleState newModuleState = SwerveModuleState.optimize(moduleStates[index], new Rotation2d(swerveModules[index].getSwerveAngle()*Math.PI/180));
-            swerveModules[index].setDriveMotor(newModuleState.speedMetersPerSecond);
+            swerveModules[index].setDriveMotor(freezeWheelPosition ? 0 : newModuleState.speedMetersPerSecond);
             swerveModules[index].GoToAngle(newModuleState.angle.getDegrees());
         }
     }
