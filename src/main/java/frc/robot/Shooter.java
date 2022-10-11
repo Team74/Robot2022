@@ -4,26 +4,38 @@
 
 package frc.robot;
 
+import com.ctre.phoenix.motorcontrol.ControlMode;
+import com.ctre.phoenix.motorcontrol.NeutralMode;
+import com.ctre.phoenix.motorcontrol.TalonFXControlMode;
+import com.ctre.phoenix.motorcontrol.TalonFXFeedbackDevice;
+import com.ctre.phoenix.motorcontrol.can.TalonFX;
+
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.SparkMaxPIDController;
 import com.revrobotics.SparkMaxRelativeEncoder;
+import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.SparkMaxRelativeEncoder.Type;
 
 import edu.wpi.first.wpilibj.DutyCycleEncoder;
-
+import edu.wpi.first.wpilibj.simulation.FlywheelSim;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 /** Add your docs here. */
 public class Shooter {
 
-    CANSparkMax flywheelMotor1;
-    CANSparkMax flywheelMotor2;
+    /*CANSparkMax flywheelMotor1;
+    CANSparkMax flywheelMotor2;*/
     CANSparkMax indexerMotor;
     CANSparkMax intakeMotor;
 
-    RelativeEncoder flywheelEncoder;
+    TalonFX newFlywheel;
+
+
+
+
+    //RelativeEncoder flywheelEncoder;
     private SparkMaxPIDController velocityController;
 
     double flywheelSpeed;
@@ -32,43 +44,52 @@ public class Shooter {
 
     public Shooter(int flywheelMotorPort1, int flywheelMotorPort2, int indexerMotorPort, int intakeMotorPort){
 
-        flywheelMotor1 = new CANSparkMax(flywheelMotorPort1, MotorType.kBrushed);
-        flywheelMotor2 = new CANSparkMax(flywheelMotorPort2, MotorType.kBrushed);
+        newFlywheel = new TalonFX(25);
+
+        /*flywheelMotor1 = new CANSparkMax(flywheelMotorPort1, MotorType.kBrushed);
+        flywheelMotor2 = new CANSparkMax(flywheelMotorPort2, MotorType.kBrushed);*/
         indexerMotor = new CANSparkMax(indexerMotorPort, MotorType.kBrushless);
         intakeMotor = new CANSparkMax(intakeMotorPort, MotorType.kBrushless);
 
-        flywheelMotor1.restoreFactoryDefaults();
-        flywheelMotor2.restoreFactoryDefaults();
+        newFlywheel.configFactoryDefault();
+        newFlywheel.setNeutralMode(NeutralMode.Coast);
 
-        flywheelMotor2.follow(flywheelMotor1, true);
+        /* Config sensor used for Primary PID [Velocity] */
+        newFlywheel.configSelectedFeedbackSensor(TalonFXFeedbackDevice.IntegratedSensor, 0, 30);
+											
 
-        flywheelEncoder = flywheelMotor1.getEncoder(Type.kQuadrature, 4096);
+        /* Config the peak and nominal outputs */
+        newFlywheel.configNominalOutputForward(0, 30);
+        newFlywheel.configNominalOutputReverse(0, 30);
+        newFlywheel.configPeakOutputForward(1, 30);
+        newFlywheel.configPeakOutputReverse(-1, 30);
 
-        velocityController = flywheelMotor1.getPIDController();
+        /* Config the Velocity closed loop gains in slot0 */
+        newFlywheel.config_kF(0, 0.0465, 30);
+        newFlywheel.config_kP(0, 0.1, 30);
+        newFlywheel.config_kI(0, 0.0, 30);
+        newFlywheel.config_kD(0, 0.01, 30);
+    
+        newFlywheel.configClosedloopRamp(0.5);
 
-        velocityController.setP(0.006);
-        velocityController.setI(0);
-        velocityController.setD(0);
-        velocityController.setIZone(0);
-        velocityController.setFF(0.000025);
-        velocityController.setOutputRange(-1.0, 1.0);
     }
 
     public void spinFlywheel(double flywheelPower){
 
-        flywheelMotor1.set(flywheelPower);
+        newFlywheel.set(ControlMode.PercentOutput, -flywheelPower);
+
+        //flywheelMotor1.set(flywheelPower);
 
         SmartDashboard.putNumber("Flywheel Power", flywheelPower);
     }
 
     public void setFlywheelSpeed(double desiredSpeed){
+
         SmartDashboard.putNumber("Desired Speed", desiredSpeed);
 
-        desiredSpeed = desiredSpeed * 0.125;
+        desiredSpeed = -desiredSpeed*2048.0/600.0;
 
-        velocityController.setReference(desiredSpeed, CANSparkMax.ControlType.kVelocity);
-
-        SmartDashboard.putNumber("PID output", flywheelMotor1.get());
+        newFlywheel.set(ControlMode.Velocity, desiredSpeed);
     }
 
     public void spinIndexer(double indexerPower){
@@ -85,9 +106,9 @@ public class Shooter {
 
     public double getFlywheelSpeed(){
 
-        flywheelSpeed = flywheelEncoder.getVelocity();
-        flywheelSpeed = flywheelSpeed*8.0;
-
+        flywheelSpeed = newFlywheel.getSelectedSensorVelocity();
+        flywheelSpeed = -flywheelSpeed*600.0/2048.0;            //Actually returns number of sensor ticks per 100 ms
+                                                              //2048 sensor ticks per rotation, 600*100ms per minute
         SmartDashboard.putNumber("Flywheel Speed", flywheelSpeed);
 
         return flywheelSpeed;
@@ -95,12 +116,12 @@ public class Shooter {
     }
 
     public void getFlywheelPosition(){
-        SmartDashboard.putNumber("Flywheel Position", flywheelEncoder.getPosition());
+        //SmartDashboard.putNumber("Flywheel Position", flywheelEncoder.getPosition());
     }
 
     public boolean isCurrentHigh(){
 
-        flywheelCurrent = (flywheelMotor1.getOutputCurrent() + flywheelMotor2.getOutputCurrent())*0.5;
+        //flywheelCurrent = (flywheelMotor1.getOutputCurrent() + flywheelMotor2.getOutputCurrent())*0.5;
 
         SmartDashboard.putNumber("flywheelCurrent", flywheelCurrent);
 
@@ -115,6 +136,11 @@ public class Shooter {
         }
     }
 
-
-
+    public void changeIndexIdle(boolean brakeMode){
+        if(brakeMode){
+            indexerMotor.setIdleMode(IdleMode.kBrake);
+        }else{
+            indexerMotor.setIdleMode(IdleMode.kCoast);
+        }
+    }
 }

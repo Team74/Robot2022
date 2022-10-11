@@ -57,7 +57,7 @@ public class SwerveDrive {
 
 
     public void moveRobotAbsolute(double xVelocity, double yVelocity, double rotationSpeed){
-        boolean freezeWheelPosition = (xVelocity == 0 && yVelocity == 0 && rotationSpeed == 0);
+        boolean freezeWheelPosition = (xVelocity == 0 && yVelocity == 0 && rotationSpeed == 0 && false);
 
         robotSpeed = ChassisSpeeds.fromFieldRelativeSpeeds(yVelocity, -xVelocity, -rotationSpeed, Rotation2d.fromDegrees(-getGyroAngle()));
 
@@ -71,6 +71,7 @@ public class SwerveDrive {
             swerveModules[index].setDriveMotor(freezeWheelPosition ? 0 : newModuleState.speedMetersPerSecond);
             swerveModules[index].GoToAngle(newModuleState.angle.getDegrees());
         }
+
     }
 
     public void moveRobotRelative(double xVelocity, double yVelocity, double rotationSpeed){
@@ -102,6 +103,15 @@ public class SwerveDrive {
             swerveModules[index].GoToAngle(newModuleState.angle.getDegrees());
         }
         
+    }
+
+    public void pasteSwerveValues(){
+
+        SmartDashboard.putNumber("Swerve 0", swerveModules[0].getSwerveAngle());
+        SmartDashboard.putNumber("Swerve 1", swerveModules[1].getSwerveAngle());
+        SmartDashboard.putNumber("Swerve 2", swerveModules[2].getSwerveAngle());
+        SmartDashboard.putNumber("Swerve 3", swerveModules[3].getSwerveAngle());
+
     }
 
 }

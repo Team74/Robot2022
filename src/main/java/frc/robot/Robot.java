@@ -12,6 +12,10 @@ import com.revrobotics.ColorSensorV3;
 import org.opencv.core.Mat;
 
 import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.AxisCamera;
+import edu.wpi.first.cscore.UsbCamera;
+import edu.wpi.first.cscore.VideoMode;
+import edu.wpi.first.cscore.VideoMode.PixelFormat;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableEntry;
@@ -36,7 +40,9 @@ public class Robot extends TimedRobot {
   private static final String kDefaultAuto = "Default";
   private static final String kAutoOne = "Auton 1";
   private static final String kAutoTwo = "Auton 2";
-  private static final String kAutoThree = "Auton 3";
+  private static final String kAutoThree = "Auton Straight";
+  private static final String kAutoFive = "Auton 5";
+
 
   private static final String kBlue = "Blue";
   private static final String kRed = "Red";
@@ -56,7 +62,7 @@ public class Robot extends TimedRobot {
 
 
   AHRS gyro = new AHRS();
-  Shooter shooter = new Shooter(14, 13, 11, 15);
+  Shooter shooter = new Shooter(13, 14, 11, 15);
   Climber climber = new Climber(19, 18, 10);
 
   NetworkTable table = NetworkTableInstance.getDefault().getTable("limelight");
@@ -64,8 +70,8 @@ public class Robot extends TimedRobot {
   SwerveModule swerveModules[] = new SwerveModule[]{     //Drive Motor, Rotation Motor, Rotation Encoder, Rotation Offset
     new SwerveModule(4, 3, 3, -104.5),           //Front Left
     new SwerveModule(2, 1, 0, -149.3),           //Front Right
-    new SwerveModule(6, 5, 2, -101.6),           //Back Left
-    new SwerveModule(8, 7, 1, 135.0)            //Back Right
+    new SwerveModule(6, 5, 2, 161.8),           //Back Left
+    new SwerveModule(8, 7, 1, 8.4)            //Back Right
   };
 
   Servo servo = new Servo(0);
@@ -93,7 +99,11 @@ public class Robot extends TimedRobot {
 
   boolean flywheelOverCurrent;
 
+  boolean opYButton;
+
   double time;
+
+  int proximityDelay;
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -102,20 +112,20 @@ public class Robot extends TimedRobot {
   @Override
   public void robotInit() {
 
-    CameraServer.startAutomaticCapture();
-
+    UsbCamera camera = CameraServer.startAutomaticCapture(0);
 
     m_auto_chooser.setDefaultOption("Default Auto", kDefaultAuto);
     m_auto_chooser.addOption("Auton 1", kAutoOne);
     m_auto_chooser.addOption("Auton 2", kAutoTwo);
-    m_auto_chooser.addOption("Auton 3", kAutoThree);
+    m_auto_chooser.addOption("Auton Straight", kAutoThree);
+    m_auto_chooser.addOption("Auton 5", kAutoFive);
 
     
     m_color_chooser.setDefaultOption("Blue", kBlue);
     m_color_chooser.addOption("Red", kRed);
 
-    SmartDashboard.putData("Auto choices", m_auto_chooser);
-    SmartDashboard.putData("Color choices", m_color_chooser);
+    SmartDashboard.putData("Auton Choices 1", m_auto_chooser);
+    SmartDashboard.putData("Auton Color Choices 1", m_color_chooser);
 
 
     gyro.reset();
@@ -154,6 +164,8 @@ public class Robot extends TimedRobot {
 
     m_autoSelected = m_auto_chooser.getSelected();
 
+    shooter.changeIndexIdle(true);
+
     if(m_color_chooser.getSelected() == kBlue){
       m_colorSelected = true;
     }else{
@@ -185,11 +197,19 @@ public class Robot extends TimedRobot {
         // Put custom auto code here
         auton = new AutonThree(drive, shooter, gyro, servo, m_colorSelected, colorSensor);
 
-        break;    
+        break;
+      case kAutoFive:
+        // Put custom auto code here
+        auton = new AutonFive(drive, shooter, gyro, servo, m_colorSelected, colorSensor);
+
+        break; 
       case kDefaultAuto:
+        auton = null;
+
+        break;
       default:
         // Put default auto code here
-
+        auton = null;
         break;
     }
   }
@@ -197,6 +217,8 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
+
+    time = m_timer.get();
 
     NetworkTableEntry tx = table.getEntry("tx");
     NetworkTableEntry ty = table.getEntry("ty");
@@ -208,7 +230,9 @@ public class Robot extends TimedRobot {
     double area = ta.getDouble(0.0);
 
 
-    auton.run(time, x);
+    if(auton!=null){
+      auton.run(time, x);
+    }
   }
 
   /** This function is called once when teleop is enabled. */
@@ -217,7 +241,9 @@ public class Robot extends TimedRobot {
 
     flywheelOn = false;
     flywheelSpeed = 0.0;
-    currentSpeed = 0.5;
+    currentSpeed = 0.10;
+
+    shooter.changeIndexIdle(true);
 
     //NetworkTableEntry getpipe = table.getEntry("getpipe");
     //getpipe.forceSetString("Blue_Ball_2022");
@@ -226,7 +252,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("set_pipeline", 0);
 
     NetworkTableEntry pipeline = table.getEntry("pipeline");
-    boolean rv = pipeline.setNumber(3);
+    boolean rv = pipeline.setNumber(0);
     System.out.println(rv);
   }
 
@@ -277,19 +303,19 @@ public class Robot extends TimedRobot {
 
 
     if(driverController.getRightBumperPressed()){
-      currentSpeed = currentSpeed + 0.25;  
+      currentSpeed = currentSpeed + 0.125;  
     }
 
     if(driverController.getLeftBumperPressed()){
-      currentSpeed = currentSpeed - 0.25;  
+      currentSpeed = currentSpeed - 0.125;  
     }
 
-    currentSpeed = MathUtil.clamp(currentSpeed, 0.25, 0.75);
+    currentSpeed = MathUtil.clamp(currentSpeed, 0.10, 0.60);
 
     driveControllerLeftX = driveControllerLeftX*currentSpeed;
     driveControllerLeftY = driveControllerLeftY*currentSpeed;
 
-    driveControllerRightX = driveControllerRightX*0.5;
+    driveControllerRightX = driveControllerRightX*0.25;
 
     SmartDashboard.putNumber("Current Speed", currentSpeed);
 
@@ -312,11 +338,27 @@ public class Robot extends TimedRobot {
 
 
 
-    if(opController.getRightTriggerAxis() > 0.1){
-      shooter.spinIntake(opController.getRightTriggerAxis());
+    if(opController.getRightTriggerAxis() > 0.1){ 
+
+      if(colorSensor.getProximity() < 200){
+        shooter.spinIntake(opController.getRightTriggerAxis());
+        proximityDelay = 1;
+      }else if(proximityDelay > 0){
+        proximityDelay = proximityDelay-1;
+      }else{
+        shooter.spinIntake(0.0);
+      }
 
     }else if(driverController.getRightTriggerAxis() > 0.1){
-      shooter.spinIntake(driverController.getRightTriggerAxis());
+
+      if(colorSensor.getProximity() < 200){
+        shooter.spinIntake(driverController.getRightTriggerAxis());
+        proximityDelay = 1;
+      }else if(proximityDelay > 0){
+        proximityDelay = proximityDelay-1;
+      }else{
+        shooter.spinIntake(0.0);
+      }
 
     }else if(opController.getRightBumper()){
       shooter.spinIntake(-1.0);
@@ -325,19 +367,35 @@ public class Robot extends TimedRobot {
       SmartDashboard.putNumber("Intake Power", 0.0);
     }
 
+    SmartDashboard.putBoolean("leftButton", driverController.getLeftBumper());
+
     if(opController.getLeftBumperPressed()){
-      indexTime = 0.4;
+      indexTime = 0.75;
     }
 
+    SmartDashboard.putNumber("Index Time", indexTime);
+
     if(indexTime > 0.0){
+
+      shooter.spinIntake(0.25);
+
       shooter.spinIndexer(1.0);
       indexTime = indexTime - 0.02;
 
     }else if(opController.getLeftTriggerAxis() > 0.1){
+
+      shooter.spinIntake(0.25);
+
       shooter.spinIndexer(opController.getLeftTriggerAxis());
 
     }else if(opController.getRightBumper()){
+
       shooter.spinIndexer(-1.0);
+
+    }else if(opController.getBackButton()){
+
+      shooter.spinIndexer(-1.0);
+
     }else{
       shooter.spinIndexer(0.0);
       SmartDashboard.putNumber("Index Power", 0.0);
@@ -359,24 +417,33 @@ public class Robot extends TimedRobot {
 
     SmartDashboard.putBoolean("Flywheel OverCurrented", flywheelOverCurrent);
 
+    drive.pasteSwerveValues();
+
     if(flywheelOn){
 
       if(opController.getBButton()){
-        flywheelSpeed = 6000.0;
+        flywheelSpeed = 2500.0;
+        //shooter.spinFlywheel(0.6);
+      }else if(opController.getYButton()){
+        flywheelSpeed = 4000.0;
+        //shooter.spinFlywheel(0.8);
       }else{
-        flywheelSpeed = 9000.0;
-
+        flywheelSpeed = 4500.0;
+        //shooter.spinFlywheel(0.9);
       }
 
       shooter.setFlywheelSpeed(flywheelSpeed);
 
     }else if(opController.getBackButton()){
       flywheelSpeed = -10.0;
-      shooter.spinFlywheel(-1.0);
+      shooter.spinFlywheel(-0.5);
 
+      SmartDashboard.putNumber("Desired Speed", -2000);
     }else{
       flywheelSpeed = 0.0;
       shooter.spinFlywheel(0.0);
+
+      SmartDashboard.putNumber("Desired Speed", 0.0);
 
     }
 
@@ -388,32 +455,37 @@ public class Robot extends TimedRobot {
     //Climber Controls
 
     climber.getExtensionPositions();
+    climber.outputClimberPositions();
 
-    if(opController.getAButton()){  //Manual Climber Controls
+    opYButton = opController.getYButton();
+
+    boolean opBButton = opController.getBButton();
+
+    if(opController.getAButton() || opBButton || opYButton){  //Manual Climber Controls
 
       if(opController.getPOV() == 0){
-        climber.moveClimberManual(0.75);
+        climber.moveClimberManual(0.75, opYButton, opBButton);
       }else if(opController.getPOV()==180){
-        climber.moveClimberManual(-0.75);
+        climber.moveClimberManual(-0.75, opYButton, opBButton);
       }else if(opController.getPOV()==90){
-        climber.moveRight(-0.75);
+        climber.moveRight(-0.75, opYButton, opBButton);
       }else if(opController.getPOV()==270){
-        climber.moveLeft(-0.75);
+        climber.moveLeft(-0.75, opYButton, opBButton);
       }else{
-        climber.moveClimberManual(0.0);
+        climber.moveClimberManual(0.0, opYButton, opBButton);
       }
 
       if(Math.abs(opController.getLeftX()) > 0.1){
 
-        climber.tiltClimberManual(opController.getLeftX());
+        climber.tiltClimberManual(opController.getLeftX(), opController.getYButton());
 
       }else{
 
-        climber.tiltClimberManual(0.0);
+        climber.tiltClimberManual(0.0, false);
 
       }
 
-    }/*else if(opController.getYButton()){  //"Automatic" Climber Controls
+    }/*\else if(opController.getYButton()){  //"Automatic" Climber Controls
 
       if(opController.getPOV() == 0){
         
@@ -425,19 +497,21 @@ public class Robot extends TimedRobot {
 
     }*/else{
 
+      
       if(Math.abs(opController.getLeftY())>0.2){
-        climber.moveLeft(opController.getLeftY()*-1.0);
+        climber.moveLeft(opController.getLeftY()*-1.0, opYButton, opBButton);
       }else{
-        climber.moveLeft(0.0);
+        climber.moveLeft(0.0, opYButton, opBButton);
       }
 
       if(Math.abs(opController.getRightY())>0.2){
-        climber.moveRight(opController.getRightY()*-1.0);
+        climber.moveRight(opController.getRightY()*-1.0, opYButton, opBButton);
       }else{
-        climber.moveRight(0.0);
+        climber.moveRight(0.0, opYButton, opBButton);
       }
     }
 
+    
     if(opController.getXButton()){
       servo.set(0.9);
     }else{

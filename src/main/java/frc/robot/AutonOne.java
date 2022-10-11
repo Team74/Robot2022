@@ -3,6 +3,7 @@ package frc.robot;
 import com.kauailabs.navx.frc.AHRS;
 import com.revrobotics.ColorSensorV3;
 
+import edu.wpi.first.networktables.NetworkTableEntry;
 import edu.wpi.first.wpilibj.Servo;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -10,6 +11,9 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 public class AutonOne extends Auton {
 
   double time;
+  double lastSavedTime = 0.0;
+  double proximityDelay;
+  int index;
 
   public AutonOne(SwerveDrive drive, Shooter shooter, AHRS gyro, Servo servo, boolean colorIsBlue, ColorSensorV3 colorSensor){
 
@@ -20,56 +24,113 @@ public class AutonOne extends Auton {
   public void run(double time, double x){
     this.time = time;
 
-    if(0.0 < time  && time <= 2.5){
+    NetworkTableEntry pipeline = table.getEntry("pipeline");
 
-      drive.moveRobotRelative(0.0, 0.2, 0.0);
-      shooter.spinIntake(0.5);
-      shooter.spinFlywheel(0.0);
+    SmartDashboard.putNumber("Auton Index", index);
+    SmartDashboard.putNumber("Time", time);
+    SmartDashboard.putNumber("Last Saved Time", lastSavedTime);
 
-    }else if(2.5 < time && time <= 2.5){
+    switch (index) {
+      case 0:    //Init, reset gyro, tilt limelight foreward
 
-      drive.moveRobotRelative(0.0, 0.0, 0.0);
-      shooter.spinIntake(1.0);
+        if(lastSavedTime == 0.0) lastSavedTime = time;
 
-    }else if(2.5 < time && time <= 4.5){
+        shooter.spinFlywheel(0.0);
+        shooter.spinIntake(1.0);
+        shooter.spinIndexer(0.0);
+        gyro.reset();
 
-      drive.moveRobotRelative(0.0, (time-2.5)*5%2.0-1.0, 0.0);
-      shooter.spinIntake(1.0);
+        if((time-lastSavedTime)>0.75){
+          index = index+1;
+        }
 
-    }else if(4.5 < time && time <= 6.6){
+        if(colorIsBlue){
+          //Change To Blue Ball Pipeline
+          pipeline.setNumber(1);
+        }else{
+          //Change To Red Ball Pipeline
+          pipeline.setNumber(2);
+        }
+        break;
+      case 1:
+        servo.set(0.9);
+        index = index+1;
 
-      drive.moveRobotAbsolute(0.0, 0.0, 0.5);
-      shooter.spinIntake(0.0);
+        break;
+      case 2: //Move Forward and pickup Ball
 
-    }else if(6.6 < time && time <= 8.0){
-      if(Math.abs(x)>2);
+        shooter.spinIntake(1.0);
 
-      System.out.println("Block 5");
+        if(colorSensor.getProximity() > 200){
 
-      drive.moveRobotAbsolute(0.0, 0.0, x*0.05);
+          proximityDelay = proximityDelay + 0.02;
+          drive.moveRobotAbsolute(0.0, 0.0, 0.0);
 
-    }else if(time <= 9.0){
 
-      System.out.println("Block 6");
+        }else{
+          proximityDelay = 0.0;
+          drive.moveRobotAbsolute(x*0.03, 0.22, 0.0);
+        }
+        
+        if((proximityDelay>0.14)||((time-lastSavedTime)>3.5)){
+          index = index+1;
+          servo.set(0.0);
+          //Change To Vision Pipeline
+          pipeline.setNumber(0);
+        }
 
-      shooter.setFlywheelSpeed(8900);
-      drive.moveRobotAbsolute(0.0, 0.0, 0.0);
+        break;
+      case 3:  //Move Towards driver station, spin towards Goal and start flywheel
 
-    }else if(time <= 11){
+        shooter.spinIndexer(-0.1);
+        shooter.spinIntake(0.0);
+        shooter.setFlywheelSpeed(4100);
+        drive.moveRobotAbsolute(0.0, 0.0, 0.75);
 
-      System.out.println("Block 7");
+        if(Math.abs(drive.getGyroAngle()-165.0) < 5.0){
+          index = index+1;
+          lastSavedTime = time;
+        }
 
-      shooter.setFlywheelSpeed(8900);
-      shooter.spinIndexer(1.0);
-      drive.moveRobotAbsolute(0.0, 0.0, 0.0);
+        break;
+      case 4:
 
-    }else{
-      System.out.println("Block 8");
+        drive.moveRobotAbsolute(0.0, 0.0, x*0.1);
 
-      shooter.spinFlywheel(0.0);
-      shooter.spinIndexer(0.0);
-      drive.moveRobotAbsolute(0.0, 0.0, 0.0);
+        shooter.spinIndexer(-0.1);
+        shooter.spinIntake(0.0);
+        shooter.setFlywheelSpeed(4100);
+
+
+        if(Math.abs(time-lastSavedTime)>1.5){
+
+          index=index+1;
+          lastSavedTime = time;
+
+        }
+
+        break;
+      case 5:
+
+        drive.moveRobotAbsolute(0.0, 0.0, 0.0);
+        shooter.setFlywheelSpeed(4100.0);
+        shooter.spinIndexer(1.0);
+        shooter.spinIntake(0.5);
+
+        if((time-lastSavedTime)>2.0){
+          index = index+1;
+        }
+        break;
+      case 6:
+
+        shooter.spinIntake(0.0);
+        drive.moveRobotAbsolute(0.0, 0.0, 0.0);
+        shooter.spinFlywheel(0.0);
+        shooter.spinIndexer(0.0);
+
+        servo.set(0.0);
+        
+        break;
     }
-
   }
 }

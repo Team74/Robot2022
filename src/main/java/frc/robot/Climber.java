@@ -6,6 +6,9 @@ import com.revrobotics.SparkMaxPIDController;
 import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
+import edu.wpi.first.wpilibj.AnalogInput;
+import edu.wpi.first.wpilibj.AnalogPotentiometer;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Climber {
@@ -21,6 +24,14 @@ public class Climber {
     RelativeEncoder leftClimberExtensionEncoder;
     RelativeEncoder rightClimberExtensionEncoder; 
 
+    DigitalInput tiltLimit;
+
+    AnalogInput leftStringPot;
+    AnalogInput rightStringPot;
+
+    AnalogPotentiometer leftPotentiometer;
+    AnalogPotentiometer rightPotentiometer;
+
     SparkMaxPIDController leftExtendController;
     SparkMaxPIDController rightExtendController;
 
@@ -31,6 +42,11 @@ public class Climber {
         rightClimberExtension = new CANSparkMax(rightClimberExtensionMotorPort, MotorType.kBrushless);
 
         climberTilt = new CANSparkMax(tiltMotorPort, MotorType.kBrushless);
+
+        tiltLimit = new DigitalInput(4);
+
+        leftStringPot = new AnalogInput(2);
+        rightStringPot = new AnalogInput(0);
 
         leftClimberExtension.restoreFactoryDefaults();
         rightClimberExtension.restoreFactoryDefaults();
@@ -83,16 +99,34 @@ public class Climber {
 
     }
 
-    public void moveClimberManual(double climberPower){
+    public void moveClimberManual(double climberPower, boolean limitOveride, boolean lowHeight){
 
-        leftClimberExtension.set(climberPower);
-        rightClimberExtension.set(-climberPower);
+        double maxHeight = 4.07;
 
+        if(lowHeight){
+            maxHeight = 3.1;
+        }
+
+        if(((leftStringPot.getAverageVoltage() > 0.36 || climberPower > 0.0) && (leftStringPot.getAverageVoltage() < (maxHeight+0.00) || climberPower < 0.0)) || limitOveride){
+            leftClimberExtension.set(climberPower);
+        }else{
+            leftClimberExtension.set(0.0);
+        }
+
+        if(((rightStringPot.getAverageVoltage() > 0.20 || climberPower > 0.0) && (rightStringPot.getAverageVoltage() < (maxHeight-0.17) || climberPower < 0.22)) || limitOveride){
+            rightClimberExtension.set(-climberPower);
+        }else{
+            rightClimberExtension.set(0.0);
+        }
     }
 
-    public void tiltClimberManual(double tiltPower){
+    public void tiltClimberManual(double tiltPower, boolean limitOverride){
 
-        climberTilt.set(tiltPower);
+        if(tiltPower < 0.0 || limitOverride || !tiltLimit.get()){
+            climberTilt.set(tiltPower);
+        }else{
+            climberTilt.set(0.0);
+        }
 
     }
 
@@ -103,14 +137,41 @@ public class Climber {
 
     }
 
-    public void moveLeft(double leftPower){
+    public void moveLeft(double leftPower, boolean limitOveride, boolean lowHeight){
 
-        leftClimberExtension.set(leftPower);
+        double maxHeight = 4.07;
+
+        if(lowHeight){
+            maxHeight = 3.1;
+        }
+
+        if(((leftStringPot.getAverageVoltage() > 0.36 || leftPower > 0.0) && (leftStringPot.getAverageVoltage() < (maxHeight+0.22) || leftPower < 0.0)) || limitOveride){
+            leftClimberExtension.set(leftPower);
+        }else{
+            leftClimberExtension.set(0.0);
+        }
 
     }
-    public void moveRight(double rightPower){
+    public void moveRight(double rightPower, boolean limitOveride, boolean lowHeight){
 
-        rightClimberExtension.set(-rightPower);
+        double maxHeight = 4.07;
+
+        if(lowHeight){
+            maxHeight = 3.1;
+        }
+
+        if(((rightStringPot.getAverageVoltage() > 0.20 || rightPower > 0.0) && (rightStringPot.getAverageVoltage() < (maxHeight+0.00) || rightPower < 0.0)) || limitOveride){
+            rightClimberExtension.set(-rightPower);
+        }else{
+            rightClimberExtension.set(0.0);
+        }
+
+    }
+
+    public void outputClimberPositions(){
+
+        SmartDashboard.putNumber("Left Climber Reading", leftStringPot.getAverageVoltage());
+        SmartDashboard.putNumber("Right Climber Reading", rightStringPot.getAverageVoltage());
 
     }
 }
